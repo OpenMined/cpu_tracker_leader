@@ -3,7 +3,7 @@ set -e
 
 if [ ! -d ".venv" ]; then
     echo "Virtual environment not found. Creating one..."
-    uv venv .venv
+    uv venv -p 3.12 .venv
     echo "Virtual environment created successfully."
     uv pip install -U syftbox --quiet
     # uv pip install -r requirements.txt

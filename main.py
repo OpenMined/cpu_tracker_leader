@@ -1,9 +1,10 @@
 from pathlib import Path
-from types import new_class
 from syftbox.lib import Client
 import os
 import json
+import shutil
 from datetime import datetime, timedelta, UTC
+from typing import Tuple
 
 
 def network_participants(datasite_path: Path):
@@ -62,10 +63,12 @@ def is_updated(timestamp: str) -> bool:
     time_diff = current_time - data_timestamp
 
     # Return True if the timestamp is within the last 10 seconds
-    return time_diff < timedelta(seconds=10)
+    return time_diff < timedelta(minutes=1)
 
 
-def get_network_cpu_mean(datasites_path: Path, peers: list[str]) -> float:
+def get_network_cpu_mean(
+    datasites_path: Path, peers: list[str]
+) -> Tuple[float, list[str]]:
     """
     Calculates the mean CPU usage across a network of peers.
 
@@ -89,6 +92,7 @@ def get_network_cpu_mean(datasites_path: Path, peers: list[str]) -> float:
     aggregated_peers = 0
     cpu_usage_mean = -1
 
+    active_peers = []
     # Iterate over each peer to gather CPU usage data
     for peer in peers:
         # Construct the path to the CPU tracker JSON file for the peer
@@ -112,16 +116,17 @@ def get_network_cpu_mean(datasites_path: Path, peers: list[str]) -> float:
         if "timestamp" in peer_data and is_updated(peer_data["timestamp"]):
             aggregated_usage += float(peer_data["cpu"])
             aggregated_peers += 1
+            active_peers.append(peer)
 
     # Calculate the mean CPU usage if there are valid peers with updated data
     if aggregated_peers > 0:
         cpu_usage_mean = aggregated_usage / aggregated_peers
 
     # Return the calculated mean CPU usage or -1 if no data is available
-    return cpu_usage_mean
+    return cpu_usage_mean, active_peers
 
 
-def truncate_file(file_path: Path, max_items: int, new_sample: float):
+def truncate_file(file_path: Path, max_items: int, new_sample: float, peers: list[str]):
     """
     Adds a new CPU sample to a JSON file and ensures the number of samples does not exceed a specified limit.
 
@@ -168,15 +173,51 @@ def truncate_file(file_path: Path, max_items: int, new_sample: float):
 
     # Write the updated history back to the JSON file
     with open(file_path, "w") as f:
-        json.dump({"items": history}, f, indent=4)
+        json.dump({"items": history, "peers": peers}, f, indent=4)
+
+
+def copy_html_files(source: Path, destination: Path):
+    """
+    Copies all files from the source directory to the destination directory.
+
+    Args:
+        source (Path): The source directory.
+        destination (Path): The destination directory.
+
+    Raises:
+        ValueError: If source or destination is not a directory.
+    """
+    if not source.is_dir():
+        raise ValueError(f"Source {source} is not a directory.")
+    if not destination.exists():
+        destination.mkdir(parents=True)
+    elif not destination.is_dir():
+        raise ValueError(f"Destination {destination} is not a directory.")
+
+    for item in source.iterdir():
+        if item.is_file():
+            target = destination / item.name
+            try:
+                shutil.copy2(item, target)
+            except Exception as e:
+                print(f"Error copying file {item} to {target}: {e}")
 
 
 if __name__ == "__main__":
     client = Client.load()
+    copy_html_files(
+        source=Path("./assets"), destination=client.datasite_path / "public"
+    )
+
     peers = network_participants(client.datasite_path.parent)
 
-    cpu_mean = get_network_cpu_mean(client.datasite_path.parent, peers)
+    cpu_mean, active_peers = get_network_cpu_mean(client.datasite_path.parent, peers)
 
     output_public_file = client.datasite_path / "public" / "cpu_tracker.json"
 
-    truncate_file(file_path=output_public_file, max_items=360, new_sample=cpu_mean)
+    truncate_file(
+        file_path=output_public_file,
+        max_items=360,
+        new_sample=cpu_mean,
+        peers=active_peers,
+    )

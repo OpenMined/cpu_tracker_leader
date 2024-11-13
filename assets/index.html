@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ftop - Federated TOP</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <!-- Update Roboto font import with correct weights -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: #1a1b26;
+        color: #a9b1d6;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      .card {
+        background: #24283b;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .metric {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 10px 0;
+        color: #7aa2f7;
+      }
+
+      .label {
+        font-size: 14px;
+        color: #565f89;
+        margin-bottom: 5px;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #1a1b26;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 10px 0;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #7aa2f7, #bb9af7);
+        transition: width 0.3s ease;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        background: #1a1b26;
+        padding: 10px;
+        border-radius: 4px;
+        text-align: center;
+      }
+
+      .email-list {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 10px;
+      }
+
+      .email {
+        padding: 5px;
+        border-radius: 4px;
+        margin: 2px 0;
+        background: #1a1b26;
+      }
+
+      .status {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background: #24283b;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .status.visible {
+        opacity: 1;
+      }
+
+      .header {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .last-update {
+        font-size: 12px;
+        color: #565f89;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard">
+      <div id="syftbox-api-badge"></div>
+      <script src="syftbox-sdk.js"></script>
+      <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+          await APIBadge.initialized;
+          APIBadge.show("https://github.com/openmined/cpu_tracker_member");
+
+          // full syntax mode
+          // APIBadge.show(
+          //   "ftop",
+          //   "1.0.1",
+          //   "https://github.com/openmined/ftop",
+          //   "https://raw.githubusercontent.com/OpenMined/ftop/refs/heads/main/icon.png"
+          // );
+        });
+      </script>
+      <div class="header">
+        <h1>CPU Tracker</h1>
+        <div class="last-update">
+          Last updated: <span id="lastUpdate">Never</span>
+        </div>
+      </div>
+
+      <!--<div class="card">-->
+      <!--  <div class="label">System Stats</div>-->
+      <!--  <div class="stats-grid">-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Total Systems</div>-->
+      <!--      <div class="metric" id="totalSystems">-</div>-->
+      <!--    </div>-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Total CPUs</div>-->
+      <!--      <div class="metric" id="totalCPUs">-</div>-->
+      <!--    </div>-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Total RAM</div>-->
+      <!--      <div class="metric" id="totalRAM">-</div>-->
+      <!--    </div>-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Avg Load</div>-->
+      <!--      <div class="metric" id="avgLoad">-</div>-->
+      <!--    </div>-->
+      <!--  </div>-->
+      <!--</div>-->
+
+      <div class="card" style="grid-column: 1 / -2;">
+        <div class="label">CPU Load (1 Hour)</div>
+        <div class="chart-container">
+          <canvas id="hourCPUChart" style="height: 30vh;" ></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: -2;">
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="label">CPU Average Load</div>
+            <div class="metric" id="avgLoad">-</div>
+          </div>
+        </div>
+        <br/>
+        <div class="label"> Active Peers</div>
+        <div class="email-list" id="emailList">
+           Emails will be inserted here 
+        </div>
+      </div>
+
+
+      <!--<div class="card">-->
+      <!--  <div class="label">CPU Load (48 Hours)</div>-->
+      <!--  <div class="chart-container">-->
+      <!--    <canvas id="historicalCPUChart"></canvas>-->
+      <!--  </div>-->
+      <!--  <div class="label">RAM Usage (48 Hours)</div>-->
+      <!--  <div class="chart-container">-->
+      <!--    <canvas id="historicalRAMChart"></canvas>-->
+      <!--  </div>-->
+      <!--</div>-->
+
+      <!--<div class="card">-->
+      <!--  <div class="label">Memory Usage</div>-->
+      <!--  <div class="chart-container">-->
+      <!--    <canvas id="memoryChart"></canvas>-->
+      <!--  </div>-->
+      <!--  <div class="stats-grid">-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Usage</div>-->
+      <!--      <div class="metric" id="ramUsage">-</div>-->
+      <!--    </div>-->
+      <!--  </div>-->
+      <!--</div>-->
+
+      <!--<div class="card">-->
+      <!--  <div class="label">Memory Statistics</div>-->
+      <!--  <div class="stats-grid">-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Used RAM</div>-->
+      <!--      <div class="metric" id="usedRAM">-</div>-->
+      <!--    </div>-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Min</div>-->
+      <!--      <div class="metric" id="minLoad">-</div>-->
+      <!--    </div>-->
+      <!--    <div class="stat">-->
+      <!--      <div class="label">Max</div>-->
+      <!--      <div class="metric" id="maxLoad">-</div>-->
+      <!--    </div>-->
+      <!--  </div>-->
+      <!--</div>-->
+
+      <!--<div class="card">-->
+      <!--  <div class="label">System Uptimes</div>-->
+      <!--  <div style="height: 400px">-->
+      <!--    <canvas id="uptimeChart"></canvas>-->
+      <!--  </div>-->
+      <!--</div>-->
+
+      <!--<div class="card">-->
+      <!--  <div class="label">CPU Load Average</div>-->
+      <!--  <div class="chart-container">-->
+      <!--    <canvas id="cpuChart"></canvas>-->
+      <!--  </div>-->
+      <!--</div>-->
+
+      <!--<div class="card">-->
+      <!--  <div class="label">Connected Systems</div>-->
+      <!--  <div class="email-list" id="emailList">-->
+      <!--     Emails will be inserted here -->
+      <!--  </div>-->
+      <!--</div>-->
+    </div>
+
+    <div id="status" class="status">Updating dashboard...</div>
+
+    <!-- Add this script to prevent FOUC -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.body.classList.add("loaded");
+      });
+    </script>
+    <script src="syftbox-sdk.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>
