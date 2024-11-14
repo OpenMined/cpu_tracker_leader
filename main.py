@@ -215,9 +215,11 @@ if __name__ == "__main__":
 
     output_public_file = client.datasite_path / "public" / "cpu_tracker.json"
 
-    truncate_file(
-        file_path=output_public_file,
-        max_items=360,
-        new_sample=cpu_mean,
-        peers=active_peers,
-    )
+    # If there's at least one active_peer
+    if len(active_peers):
+        truncate_file(
+            file_path=output_public_file,
+            max_items=360,
+            new_sample=cpu_mean,
+            peers=active_peers,
+        )
