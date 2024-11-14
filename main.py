@@ -83,8 +83,8 @@ def get_network_cpu_mean(
     Example:
         If `datasites_path` is "/datasites" and the list of peers is ["peer1", "peer2"],
         this function will attempt to read CPU usage data from files located at:
-        - "/datasites/peer1/app_pipelines/cpu_tracker/cpu_tracker.json"
-        - "/datasites/peer2/app_pipelines/cpu_tracker/cpu_tracker.json"
+        - "/datasites/peer1/api_data/cpu_tracker/cpu_tracker.json"
+        - "/datasites/peer2/api_data/cpu_tracker/cpu_tracker.json"
         It then computes the average CPU usage for peers with valid and updated data.
     """
     # Initialize variables for aggregated CPU usage and peer count
@@ -97,7 +97,7 @@ def get_network_cpu_mean(
     for peer in peers:
         # Construct the path to the CPU tracker JSON file for the peer
         tracker_file: Path = (
-            datasites_path / peer / "app_pipelines" / "cpu_tracker" / "cpu_tracker.json"
+            datasites_path / peer / "api_data" / "cpu_tracker" / "cpu_tracker.json"
         )
 
         # Skip if the tracker file does not exist
@@ -178,7 +178,7 @@ def truncate_file(file_path: Path, max_items: int, new_sample: float, peers: lis
 
 def copy_html_files(source: Path, destination: Path):
     """
-    Copies all files from the source directory to the destination directory.
+    Moves all files from the source directory to the destination directory.
 
     Args:
         source (Path): The source directory.
@@ -198,9 +198,9 @@ def copy_html_files(source: Path, destination: Path):
         if item.is_file():
             target = destination / item.name
             try:
-                shutil.copy2(item, target)
+                os.rename(item, target)
             except Exception as e:
-                print(f"Error copying file {item} to {target}: {e}")
+                print(f"Error moving file {item} to {target}: {e}")
 
 
 if __name__ == "__main__":
